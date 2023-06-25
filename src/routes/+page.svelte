@@ -6,7 +6,6 @@
   let remoteVideo: HTMLVideoElement;
 
   let localStream: MediaStream;
-  let remoteStream: MediaStream;
 
   let roomId: string;
   let userId: string;
@@ -20,7 +19,6 @@
         video: true,
         audio: true,
       });
-      remoteStream = new MediaStream();
       localVideo.srcObject = localStream;
       localVideo.muted = true;
 
@@ -74,15 +72,8 @@
     };
 
     peerConnection.ontrack = (event) => {
-      event.streams[0].getTracks().forEach((track) => {
-        remoteStream.addTrack(track);
-      });
-      console.log(
-        "remote stream",
-        remoteStream,
-        event.streams[0].getTracks().length
-      );
-      remoteVideo.srcObject = event.streams[0];
+      const [remoteStream] = event.streams;
+      remoteVideo.srcObject = remoteStream;
     };
 
     if (!localStream) {
@@ -136,3 +127,12 @@
     <button on:click={() => createPeerConnection(roomId)}> Join Call </button>
   {/if}
 </div>
+
+<style>
+  video {
+    width: 100%;
+    max-width: 400px;
+    height: 300px;
+    border: 1px solid black;
+  }
+</style>
