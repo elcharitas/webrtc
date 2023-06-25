@@ -26,7 +26,11 @@ function injectSocketIO(server) {
     });
 
     socket.on("offer", (offer, room) => {
-      socket.to(room).emit("offer", offer, username);
+      socket.to(room).emit("offer", offer, room);
+    });
+
+    socket.on("answer", (answer, room) => {
+      socket.to(room).emit("answer", answer, room);
     });
 
     socket.on("message", (message) => {

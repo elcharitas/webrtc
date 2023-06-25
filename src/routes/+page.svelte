@@ -4,7 +4,9 @@
 
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
+
   let localStream: MediaStream;
+  let remoteStream: MediaStream;
 
   let roomId: string;
   let userId: string;
@@ -13,12 +15,12 @@
   const socket = io();
 
   onMount(async () => {
-    console.log("mounting");
     try {
       localStream = await navigator.mediaDevices?.getUserMedia({
         video: true,
         audio: true,
       });
+      remoteStream = new MediaStream();
       localVideo.srcObject = localStream;
       localVideo.muted = true;
 
@@ -38,12 +40,33 @@
     ],
   };
 
-  async function createPeerConnection(roomId: string) {
+  socket.on("offer", async (offer, room) => {
+    if (!peerConnection) {
+      await createPeerConnection(room, false);
+    }
+    console.log("new user joined room", room);
+    await peerConnection.setRemoteDescription(offer);
+
+    roomId = room;
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    socket.emit("answer", answer, room);
+  });
+
+  socket.on("answer", async (answer, room) => {
+    console.log("received answer", answer);
+    await peerConnection.setRemoteDescription(answer);
+
+    console.log("connected", room);
+  });
+
+  async function createPeerConnection(roomId: string, withOffer = true) {
     peerConnection = new RTCPeerConnection(configuration);
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log("sending ice candidate", event.candidate);
         socket.emit("register", {
           room: roomId,
         });
@@ -51,7 +74,15 @@
     };
 
     peerConnection.ontrack = (event) => {
-      remoteVideo.srcObject = event.streams[0];
+      event.streams[0].getTracks().forEach((track) => {
+        remoteStream.addTrack(track);
+      });
+      console.log(
+        "remote stream",
+        remoteStream,
+        event.streams[0].getTracks().length
+      );
+      remoteVideo.srcObject = remoteStream;
     };
 
     if (!localStream) {
@@ -65,13 +96,15 @@
 
     isConnected = true;
 
-    try {
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
+    if (withOffer) {
+      try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
 
-      socket.emit("offer", { ...offer, room: "test" });
-    } catch (err) {
-      console.error("Error creating peer connection.", err);
+        socket.emit("offer", offer, roomId);
+      } catch (err) {
+        console.error("Error creating peer connection.", err);
+      }
     }
   }
 </script>
