@@ -25,8 +25,8 @@ function injectSocketIO(server) {
       // socket.emit("room", ROOMS_DATA[candidate.room]);
     });
 
-    socket.on("offer", (offer, room) => {
-      socket.to(room).emit("offer", offer, room);
+    socket.on("offer", (offer, userId, room) => {
+      socket.to(room).emit("offer", offer, userId, room);
     });
 
     socket.on("answer", (answer, room) => {

@@ -40,7 +40,7 @@
     ],
   };
 
-  socket.on("offer", async (offer, room) => {
+  socket.on("offer", async (offer, sender, room) => {
     if (!peerConnection) {
       await createPeerConnection(room, false);
     }
@@ -52,7 +52,7 @@
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
 
-    socket.emit("answer", answer, room);
+    socket.emit("answer", answer, sender);
   });
 
   socket.on("answer", async (answer, room) => {
@@ -82,7 +82,7 @@
         remoteStream,
         event.streams[0].getTracks().length
       );
-      remoteVideo.srcObject = remoteStream;
+      remoteVideo.srcObject = event.streams[0];
     };
 
     if (!localStream) {
@@ -101,7 +101,8 @@
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
 
-        socket.emit("offer", offer, roomId);
+        socket.emit("offer", offer, socket.id, roomId);
+        console.log("sent offer", offer);
       } catch (err) {
         console.error("Error creating peer connection.", err);
       }
@@ -112,9 +113,6 @@
 <h1>WebRTC Call</h1>
 
 <video bind:this={localVideo} autoplay playsinline>
-  <track kind="captions" />
-</video>
-<video bind:this={remoteVideo} autoplay playsinline>
   <track kind="captions" />
 </video>
 <video bind:this={remoteVideo} autoplay playsinline>
