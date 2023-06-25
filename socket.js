@@ -14,15 +14,9 @@ function injectSocketIO(server) {
 
     socket.emit("name", username);
 
-    socket.on("register", (candidate) => {
-      console.log("register", candidate);
-      // ROOMS_DATA[candidate.room] = {
-      //   users: [username],
-      //   messages: [],
-      // };
-      // ROOMS_DATA[candidate.room].users.push(candidate.username);
-      // socket.join(candidate.room);
-      // socket.emit("room", ROOMS_DATA[candidate.room]);
+    socket.on("register", (candidate, userId, room) => {
+      console.log("register", room);
+      socket.to(room).emit("register", candidate, userId, room);
     });
 
     socket.on("offer", (offer, userId, room) => {

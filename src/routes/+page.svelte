@@ -38,12 +38,27 @@
     ],
   };
 
+  socket.on("register", async (candidate, sender, room) => {
+    if (!peerConnection) {
+      await createPeerConnection(room, false);
+    }
+
+    try {
+      await peerConnection.addIceCandidate(candidate);
+    } catch (err) {
+      console.error("Error adding received ice candidate.", err);
+    }
+  });
+
   socket.on("offer", async (offer, sender, room) => {
     if (!peerConnection) {
       await createPeerConnection(room, false);
     }
+
     console.log("new user joined room", room);
     await peerConnection.setRemoteDescription(offer);
+
+    console.log("received offer", offer, room);
 
     roomId = room;
 
@@ -64,10 +79,9 @@
     peerConnection = new RTCPeerConnection(configuration);
 
     peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("register", {
-          room: roomId,
-        });
+      if (event.candidate && roomId) {
+        console.log("which user", roomId);
+        socket.emit("register", event.candidate, socket.id, roomId);
       }
     };
 
@@ -75,11 +89,6 @@
       const [remoteStream] = event.streams;
       remoteVideo.srcObject = remoteStream;
     };
-
-    if (!localStream) {
-      console.log("No local stream to add to peer connection.");
-      return;
-    }
 
     localStream.getTracks().forEach((track) => {
       peerConnection.addTrack(track, localStream);
