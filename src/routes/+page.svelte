@@ -112,27 +112,30 @@
 
 <h1>WebRTC Call</h1>
 
-<video bind:this={localVideo} autoplay playsinline>
-  <track kind="captions" />
-</video>
-<video bind:this={remoteVideo} autoplay playsinline>
-  <track kind="captions" />
-</video>
+<div class="videos">
+  <video bind:this={localVideo} autoplay playsinline>
+    <track kind="captions" />
+  </video>
+  <video bind:this={remoteVideo} autoplay playsinline>
+    <track kind="captions" />
+  </video>
+</div>
 
 <div>
   {#if isConnected}
     <p>Room ID: {roomId}</p>
     <button>End Call</button>
   {:else}
-    <p>Room ID: Not connected</p>
     {#if userId}
       <p>
-        Personal ID: {userId} (You can share this for others to connect with you)
+        <button on:click={() => navigator.clipboard.writeText(userId)}>
+          PID: {userId}
+        </button>
       </p>
     {:else}
       <p>Personal ID: Connecting</p>
     {/if}
-    <input type="text" bind:value={roomId} />
+    <input type="text" bind:value={roomId} placeholder="Room ID to join" />
     <button on:click={() => createPeerConnection(roomId)}> Join Call </button>
   {/if}
 </div>
@@ -143,5 +146,69 @@
     max-width: 400px;
     height: 300px;
     border: 1px solid black;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    object-fit: cover;
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  video:hover {
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .videos {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  input {
+    width: 100%;
+    max-width: 400px;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  button {
+    width: 100%;
+    max-width: 400px;
+    padding: 0.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #007bff;
+    border: 1px solid #007bff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+  }
+
+  p {
+    font-size: 1rem;
+    text-align: center;
   }
 </style>
