@@ -10,8 +10,11 @@
   let userId: string;
   let isConnected = false;
 
+  let peer: import("peerjs").Peer;
+
   onMount(async () => {
-    const peer = await createPeer();
+    await createPeer();
+
     if (!peer) {
       console.error("Error creating peer.");
       return;
@@ -38,6 +41,9 @@
 
         call.answer(localStream);
 
+        isConnected = true;
+        roomId = call.peer;
+
         call.on("stream", (remoteStream) => {
           remoteVideo.srcObject = remoteStream;
         });
@@ -50,7 +56,25 @@
   async function createPeer() {
     if (typeof navigator === "undefined") return;
     const Peer = (await import("peerjs")).default;
-    return new Peer();
+    peer = new Peer();
+  }
+
+  function joinCall() {
+    if (!roomId) return;
+    const call = peer.call(roomId, localStream);
+
+    call.on("stream", (remoteStream) => {
+      remoteVideo.srcObject = remoteStream;
+    });
+
+    isConnected = true;
+  }
+
+  function endCall() {
+    if (!roomId) return;
+    peer.disconnect();
+    peer.destroy();
+    isConnected = false;
   }
 </script>
 
@@ -60,15 +84,17 @@
   <video bind:this={localVideo} autoplay playsinline>
     <track kind="captions" />
   </video>
-  <video bind:this={remoteVideo} autoplay playsinline>
-    <track kind="captions" />
-  </video>
+  {#if isConnected}
+    <video bind:this={remoteVideo} autoplay playsinline>
+      <track kind="captions" />
+    </video>
+  {/if}
 </div>
 
 <div>
   {#if isConnected}
     <p>Room ID: {roomId}</p>
-    <button>End Call</button>
+    <button on:click={endCall}>End Call</button>
   {:else}
     {#if userId}
       <p>
@@ -80,7 +106,7 @@
       <p>Personal ID: Connecting</p>
     {/if}
     <input type="text" bind:value={roomId} placeholder="Room ID to join" />
-    <button on:click={() => {}}> Join Call </button>
+    <button on:click={joinCall}> Join Call </button>
   {/if}
 </div>
 
