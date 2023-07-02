@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import io from "socket.io-client";
 
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
@@ -11,9 +10,12 @@
   let userId: string;
   let isConnected = false;
 
-  const socket = io();
-
   onMount(async () => {
+    const peer = await createPeer();
+    if (!peer) {
+      console.error("Error creating peer.");
+      return;
+    }
     try {
       localStream = await navigator.mediaDevices?.getUserMedia({
         video: true,
@@ -22,91 +24,33 @@
       localVideo.srcObject = localStream;
       localVideo.muted = true;
 
-      userId = socket.id;
+      userId = peer.id;
     } catch (err) {
       console.error("Error accessing media devices.", err);
     }
-  });
-
-  // WebRTC connection setup and handling
-  let peerConnection: RTCPeerConnection;
-  const configuration: RTCConfiguration = {
-    iceServers: [
-      {
-        urls: "stun:stun.l.google.com:19302",
-      },
-    ],
-  };
-
-  socket.on("register", async (candidate, sender, room) => {
-    if (!peerConnection) {
-      await createPeerConnection(room, false);
-    }
-
     try {
-      await peerConnection.addIceCandidate(candidate);
+      peer.on("open", () => {
+        console.log("Peer ID:", peer.id);
+      });
+
+      peer.on("call", async (call) => {
+        console.log("Incoming call");
+
+        call.answer(localStream);
+
+        call.on("stream", (remoteStream) => {
+          remoteVideo.srcObject = remoteStream;
+        });
+      });
     } catch (err) {
-      console.error("Error adding received ice candidate.", err);
+      console.error("Error connecting to peer server.", err);
     }
   });
 
-  socket.on("offer", async (offer, sender, room) => {
-    if (!peerConnection) {
-      await createPeerConnection(room, false);
-    }
-
-    console.log("new user joined room", room);
-    await peerConnection.setRemoteDescription(offer);
-
-    console.log("received offer", offer, room);
-
-    roomId = room;
-
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-
-    socket.emit("answer", answer, sender);
-  });
-
-  socket.on("answer", async (answer, room) => {
-    console.log("received answer", answer);
-    await peerConnection.setRemoteDescription(answer);
-
-    console.log("connected", room);
-  });
-
-  async function createPeerConnection(roomId: string, withOffer = true) {
-    peerConnection = new RTCPeerConnection(configuration);
-
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate && roomId) {
-        console.log("which user", roomId);
-        socket.emit("register", event.candidate, socket.id, roomId);
-      }
-    };
-
-    peerConnection.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      remoteVideo.srcObject = remoteStream;
-    };
-
-    localStream.getTracks().forEach((track) => {
-      peerConnection.addTrack(track, localStream);
-    });
-
-    isConnected = true;
-
-    if (withOffer) {
-      try {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-
-        socket.emit("offer", offer, socket.id, roomId);
-        console.log("sent offer", offer);
-      } catch (err) {
-        console.error("Error creating peer connection.", err);
-      }
-    }
+  async function createPeer() {
+    if (typeof navigator === "undefined") return;
+    const Peer = (await import("peerjs")).default;
+    return new Peer();
   }
 </script>
 
@@ -136,7 +80,7 @@
       <p>Personal ID: Connecting</p>
     {/if}
     <input type="text" bind:value={roomId} placeholder="Room ID to join" />
-    <button on:click={() => createPeerConnection(roomId)}> Join Call </button>
+    <button on:click={() => {}}> Join Call </button>
   {/if}
 </div>
 
