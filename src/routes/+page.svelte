@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-
-  let localVideo: HTMLVideoElement;
-  let remoteVideo: HTMLVideoElement;
+  import Video from "./video.svelte";
 
   let localStream: MediaStream;
 
@@ -11,6 +9,7 @@
   let isConnected = false;
 
   let peer: import("peerjs").Peer;
+  const remoteStreams: Record<string, MediaStream> = {};
 
   onMount(async () => {
     await createPeer();
@@ -19,25 +18,27 @@
       console.error("Error creating peer.");
       return;
     }
+
     try {
       localStream = await navigator.mediaDevices?.getUserMedia({
         video: true,
         audio: true,
       });
-      localVideo.srcObject = localStream;
-      localVideo.muted = true;
-
-      userId = peer.id;
     } catch (err) {
       console.error("Error accessing media devices.", err);
     }
     try {
       peer.on("open", () => {
         console.log("Peer ID:", peer.id);
+        userId = peer.id;
+        joinRoomId(peer.id);
       });
 
       peer.on("call", async (call) => {
         console.log("Incoming call");
+
+        // this is where we add a peer to the call
+        await joinRoomId(call.peer, peer.id);
 
         call.answer(localStream);
 
@@ -45,7 +46,7 @@
         roomId = call.peer;
 
         call.on("stream", (remoteStream) => {
-          remoteVideo.srcObject = remoteStream;
+          remoteStreams[call.peer] = remoteStream;
         });
       });
     } catch (err) {
@@ -59,15 +60,30 @@
     peer = new Peer();
   }
 
-  function joinCall() {
+  async function joinCall(room: string) {
     if (!roomId) return;
-    const call = peer.call(roomId, localStream);
+    // although using the same endpoint, this is only to get the peers.
+    // the peer is only ever added by the host
+    const { peers } = (await joinRoomId(room)) ?? {};
+    console.log("Peers:", peers);
 
-    call.on("stream", (remoteStream) => {
-      remoteVideo.srcObject = remoteStream;
-    });
+    if (!peers) {
+      console.error("Error joining room.");
+      return;
+    }
+
+    peers.forEach(callPeer);
 
     isConnected = true;
+  }
+
+  function callPeer(peerId: string) {
+    if (!peer) return;
+    const call = peer.call(peerId, localStream);
+
+    call.on("stream", (remoteStream) => {
+      remoteStreams[peerId] = remoteStream;
+    });
   }
 
   function endCall() {
@@ -76,18 +92,35 @@
     peer.destroy();
     isConnected = false;
   }
+
+  function joinRoomId(roomId: string, peerId = peer?.id) {
+    if (!peer) return;
+
+    return fetch("/api/peers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ peerId, roomId }),
+    }).then(
+      (res) =>
+        res.json() as Promise<{
+          roomId: string;
+          peerId: string;
+          peers: string[];
+        }>
+    );
+  }
 </script>
 
 <h1>WebRTC Call</h1>
 
 <div class="videos">
-  <video bind:this={localVideo} autoplay playsinline>
-    <track kind="captions" />
-  </video>
+  <Video peerId={userId} stream={localStream} />
   {#if isConnected}
-    <video bind:this={remoteVideo} autoplay playsinline>
-      <track kind="captions" />
-    </video>
+    {#each Object.keys(remoteStreams) as id}
+      <Video peerId={id} stream={remoteStreams[id]} />
+    {/each}
   {/if}
 </div>
 
@@ -106,26 +139,11 @@
       <p>Personal ID: Connecting</p>
     {/if}
     <input type="text" bind:value={roomId} placeholder="Room ID to join" />
-    <button on:click={joinCall}> Join Call </button>
+    <button on:click={() => joinCall(roomId)}> Join Call </button>
   {/if}
 </div>
 
 <style>
-  video {
-    width: 100%;
-    max-width: 400px;
-    height: 300px;
-    border: 1px solid black;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    object-fit: cover;
-    transition: box-shadow 0.3s ease-in-out;
-  }
-
-  video:hover {
-    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
-  }
-
   h1 {
     font-size: 2rem;
     font-weight: bold;

@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
-		"dev": "vite dev --port 8080 --host",
+		"dev": "vite dev",
 		"build": "vite build",
 		"start": "vite dev --port 8080 --host",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

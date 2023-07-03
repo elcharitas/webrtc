@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
 
   let currentVideo: HTMLVideoElement;
+  export let peerId: string;
   export let stream: MediaStream;
 
   onMount(() => {
@@ -13,9 +14,12 @@
   });
 </script>
 
-<video bind:this={currentVideo} autoplay>
-  <track kind="captions" />
-</video>
+<div>
+  <video bind:this={currentVideo} autoplay playsinline>
+    <track kind="captions" />
+  </video>
+  {#if peerId}<p>User: {peerId}</p>{/if}
+</div>
 
 <style>
   video {
@@ -31,5 +35,10 @@
 
   video:hover {
     box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  p {
+    font-size: 1rem;
+    text-align: center;
   }
 </style>
